@@ -1,11 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertTriangle, Clock, MapPin, Monitor, Filter, Search, FileText } from 'lucide-react';
-import { alerts } from '../data/mockData';
 import { clsx } from 'clsx';
+import { api } from '../api/apiClient';
 
 export default function RiskAlerts() {
     const [filter, setFilter] = useState('All');
+    const [alerts, setAlerts] = useState([]);
+
+    useEffect(() => {
+        const fetchAlerts = async () => {
+            try {
+                const data = await api.get('/api/alerts');
+                setAlerts(data);
+            } catch (error) {
+                console.error("Failed to fetch alerts:", error);
+            }
+        };
+
+        fetchAlerts();
+        const interval = setInterval(fetchAlerts, 3000); // 3-second polling
+        return () => clearInterval(interval);
+    }, []);
 
     const filteredAlerts = filter === 'All' ? alerts : alerts.filter(a => a.status === filter);
 
@@ -15,8 +31,13 @@ export default function RiskAlerts() {
                 <div>
                     <h1 className="text-2xl font-bold flex items-center">
                         <AlertTriangle className="w-6 h-6 mr-3 text-cyber-danger" /> System Alerts
+                        {alerts.filter(a => a.status === 'Open').length > 0 && (
+                            <span className="ml-3 bg-cyber-danger text-white text-xs px-2 py-0.5 rounded-full animate-pulse">
+                                Live
+                            </span>
+                        )}
                     </h1>
-                    <p className="text-sm text-gray-500 mt-1">AI-generated alerts based on behavioral anomalies</p>
+                    <p className="text-sm text-gray-500 mt-1">Live AI-generated alerts based on behavioral anomalies</p>
                 </div>
 
                 <div className="flex items-center space-x-4">
@@ -41,13 +62,18 @@ export default function RiskAlerts() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <AnimatePresence>
+                    {filteredAlerts.length === 0 && (
+                        <div className="col-span-3 text-center text-gray-500 py-12">
+                            No alerts match the current filter.
+                        </div>
+                    )}
                     {filteredAlerts.map((alert, index) => (
                         <motion.div
                             key={alert.id}
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.95 }}
-                            transition={{ delay: index * 0.1 }}
+                            transition={{ delay: 0 }} // Disabled staggered delay to prevent flashing during polling
                             className="glass-panel rounded-xl overflow-hidden border border-gray-800 hover:border-cyber-danger/50 transition-colors group flex flex-col"
                         >
                             <div className={clsx(
@@ -58,7 +84,7 @@ export default function RiskAlerts() {
                                 <div className="flex justify-between items-start mb-4">
                                     <span className="text-xs font-mono text-gray-500 bg-gray-800 px-2 py-1 rounded">{alert.id}</span>
                                     <span className={clsx(
-                                        "px-2 py-1 text-xs rounded-full border",
+                                        "px-2 py-1 text-xs rounded-full border transition-colors",
                                         alert.status === 'Open' ? 'bg-cyber-danger/10 border-cyber-danger/20 text-cyber-danger' :
                                             alert.status === 'Investigating' ? 'bg-cyber-warning/10 border-cyber-warning/20 text-cyber-warning' :
                                                 'bg-gray-800 border-gray-700 text-gray-400'
@@ -94,7 +120,18 @@ export default function RiskAlerts() {
 
                             <div className="p-4 border-t border-gray-800 bg-cyber-800/20 flex justify-between items-center opacity-0 group-hover:opacity-100 transition-opacity">
                                 <div className="text-sm font-medium">Risk Score: <span className={alert.riskScore > 80 ? 'text-cyber-danger' : 'text-cyber-warning'}>{alert.riskScore}</span></div>
-                                <button className="text-xs bg-cyber-blue hover:bg-blue-600 text-white px-3 py-1.5 rounded transition-colors">
+                                <button
+                                    className="text-xs bg-cyber-blue hover:bg-blue-600 text-white px-3 py-1.5 rounded transition-colors"
+                                    onClick={async () => {
+                                        try {
+                                            await api.post(`/api/alerts/${alert.id}/investigate`);
+                                            // Optimistic update
+                                            setAlerts(prev => prev.map(a => a.id === alert.id ? { ...a, status: 'Investigating' } : a));
+                                        } catch(e) {
+                                            console.error("Failed to update status");
+                                        }
+                                    }}
+                                >
                                     Investigate
                                 </button>
                             </div>

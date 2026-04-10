@@ -1,25 +1,34 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell } from 'recharts';
 import { motion } from 'framer-motion';
 import { Activity, ShieldAlert, BarChart3, Clock } from 'lucide-react';
-
-const topRiskyEmployees = [
-    { name: 'EMP-023', score: 92 },
-    { name: 'EMP-112', score: 78 },
-    { name: 'EMP-089', score: 65 },
-    { name: 'EMP-045', score: 45 },
-    { name: 'EMP-134', score: 32 },
-];
-
-const anomalyTypes = [
-    { name: 'Off-hours access', count: 45 },
-    { name: 'Mass Download', count: 28 },
-    { name: 'Multiple Fails', count: 18 },
-    { name: 'Unauth Folder', count: 12 },
-    { name: 'Geo-Anomaly', count: 5 },
-];
+import { api } from '../api/apiClient';
 
 export default function BehaviorAnalytics() {
+    const [topRiskyEmployees, setTopRiskyEmployees] = useState([
+        { name: 'Loading...', score: 0 }
+    ]);
+    const [anomalyTypes, setAnomalyTypes] = useState([
+        { name: 'Loading...', count: 0 }
+    ]);
+
+    useEffect(() => {
+        const fetchAnalytics = async () => {
+            try {
+                const riskyData = await api.get('/api/analytics/top-risky');
+                const anomalyData = await api.get('/api/analytics/anomaly-distribution');
+                setTopRiskyEmployees(riskyData);
+                setAnomalyTypes(anomalyData);
+            } catch (error) {
+                console.error("Failed to fetch analytics:", error);
+            }
+        };
+
+        fetchAnalytics();
+        const interval = setInterval(fetchAnalytics, 3000);
+        return () => clearInterval(interval);
+    }, []);
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between border-b border-gray-800 pb-4">
@@ -62,7 +71,7 @@ export default function BehaviorAnalytics() {
                 <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.2 }}
+                    transition={{ delay: 0 }}
                     className="glass-panel p-6 rounded-xl"
                 >
                     <h2 className="text-lg font-semibold flex items-center mb-6">
@@ -89,17 +98,17 @@ export default function BehaviorAnalytics() {
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4 }}
+                    transition={{ delay: 0 }}
                     className="glass-panel p-6 rounded-xl"
                 >
                     <h2 className="text-lg font-semibold flex items-center mb-4">
-                        <Clock className="w-5 h-5 mr-2 text-cyber-warning" /> Unusual Login Heatmap Insights
+                        <Clock className="w-5 h-5 mr-2 text-cyber-warning" /> Live Action Heatmap Insights
                     </h2>
                     <p className="text-gray-400 text-sm mb-4">
-                        AI analysis shows a 300% increase in unusual off-hours login attempts starting at 02:00 AM EST, primarily affecting the IT and Corporate departments. This correlates with the recent mass data export alerts.
+                        AI analysis is continuously monitoring employee behavior. Peaks in risk scores indicate high anomaly detection counts originating from bulk data operations or suspicious access times.
                     </p>
                     <div className="bg-cyber-900 border border-gray-800 rounded-lg p-4 font-mono text-sm text-gray-300">
-                        [AI_AGENT_NOTE]: Monitor active session tokens for EMP-023 and EMP-112. Recommended action is immediate session invalidation and password reset.
+                        [AI_AGENT_NOTE]: Monitoring active sessions. Any real-time alerts generated will aggressively shift the anomaly distributions above.
                     </div>
                 </motion.div>
             </div>

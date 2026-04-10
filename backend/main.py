@@ -66,14 +66,37 @@ app.include_router(ml_router)
 app.include_router(activity_router)
 
 
+from database import SessionLocal
+
 # ──────────────────────────────────────────────
 # Startup Event — Create tables & initialize ML model
 # ──────────────────────────────────────────────
+
+def seed_database():
+    """Seeds the database with foundational mock employees if empty."""
+    db = SessionLocal()
+    try:
+        if db.query(Employee).count() == 0:
+            initial_employees = [
+                Employee(id="EMP-001", name="Alice Smith", role="Loan Officer", department="Retail Banking", risk_score=12, risk_level="Low", status="Active"),
+                Employee(id="EMP-023", name="Bob Johnson", role="Data Analyst", department="IT", risk_score=5, risk_level="Low", status="Active"),
+                Employee(id="EMP-045", name="Charlie Davis", role="Branch Manager", department="Retail Banking", risk_score=45, risk_level="Medium", status="Active"),
+                Employee(id="EMP-088", name="Diana Prince", role="Investment Banker", department="Corporate", risk_score=8, risk_level="Low", status="Active"),
+                Employee(id="EMP-112", name="Evan Wright", role="System Admin", department="IT", risk_score=15, risk_level="Low", status="Active")
+            ]
+            db.add_all(initial_employees)
+            db.commit()
+            print("[OK] Database seeded with base employees.")
+    except Exception as e:
+        print(f"[ERROR] Failed to seed database: {e}")
+    finally:
+        db.close()
 
 @app.on_event("startup")
 def on_startup():
     """Create database tables on first run."""
     Base.metadata.create_all(bind=engine)
+    seed_database()
     print("[OK] Database tables created.")
     print("[OK] BankSec AI API is running.")
     print("Swagger docs: http://localhost:8000/docs")

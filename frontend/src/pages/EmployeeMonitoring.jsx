@@ -1,13 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Filter, X, ChevronRight, UserCircle, Clock, FileDown, ShieldAlert } from 'lucide-react';
-import { employees } from '../data/mockData';
+import { Search, Filter, X, ChevronRight, UserCircle, Clock, FileDown, ShieldAlert, AlertTriangle } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { api } from '../api/apiClient';
 
 export default function EmployeeMonitoring() {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedEmployee, setSelectedEmployee] = useState(null);
+    const [employees, setEmployees] = useState([]);
+
+    useEffect(() => {
+        const fetchEmployees = async () => {
+            try {
+                const data = await api.get('/api/employees');
+                setEmployees(data);
+                
+                // If an employee is selected, update their real-time profile too
+                if (selectedEmployee) {
+                    const latest = data.find(e => e.id === selectedEmployee.id);
+                    if (latest) setSelectedEmployee(latest);
+                }
+            } catch (error) {
+                console.error("Failed to fetch employees:", error);
+            }
+        };
+
+        fetchEmployees();
+        const interval = setInterval(fetchEmployees, 3000);
+        return () => clearInterval(interval);
+    }, [selectedEmployee]);
 
     const filteredEmployees = employees.filter(emp =>
         emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -51,13 +73,18 @@ export default function EmployeeMonitoring() {
                                 </tr>
                             </thead>
                             <tbody>
+                                {filteredEmployees.length === 0 && (
+                                     <tr>
+                                        <td colSpan="6" className="px-6 py-8 text-center text-gray-500">Loading tracking data...</td>
+                                     </tr>
+                                )}
                                 {filteredEmployees.map((emp, index) => (
                                     <motion.tr
                                         initial={{ opacity: 0, x: -20 }}
                                         animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: index * 0.05 }}
+                                        transition={{ delay: 0 }}
                                         key={emp.id}
-                                        className="border-b border-gray-800 hover:bg-cyber-800/50 transition-colors cursor-pointer"
+                                        className={clsx("border-b border-gray-800 hover:bg-cyber-800/50 transition-colors cursor-pointer", selectedEmployee?.id === emp.id ? "bg-cyber-800/40" : "")}
                                         onClick={() => setSelectedEmployee(emp)}
                                     >
                                         <td className="px-6 py-4 font-mono text-cyber-blue">{emp.id}</td>
@@ -74,14 +101,17 @@ export default function EmployeeMonitoring() {
                                                         emp.riskLevel === 'Medium' ? 'bg-cyber-warning' : 'bg-cyber-success'
                                                 )}></span>
                                                 <span className={
-                                                    emp.riskLevel === 'High' ? 'text-cyber-danger font-bold' :
+                                                    emp.riskLevel === 'High' ? 'text-cyber-danger font-bold relative inline-flex' :
                                                         emp.riskLevel === 'Medium' ? 'text-cyber-warning' : 'text-gray-400'
-                                                }>{emp.riskScore}</span>
+                                                }>
+                                                    {emp.riskScore}
+                                                    {emp.riskLevel === 'High' && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyber-danger opacity-75 left-0 top-0"></span>}
+                                                </span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className={clsx(
-                                                "px-2 py-1 text-xs rounded-full border",
+                                                "px-2 py-1 text-xs rounded-full border transition-colors",
                                                 emp.status === 'Active' ? 'bg-cyber-success/10 border-cyber-success/20 text-cyber-success' :
                                                     emp.status === 'Investigating' ? 'bg-cyber-warning/10 border-cyber-warning/20 text-cyber-warning' :
                                                         'bg-gray-800 border-gray-700 text-gray-400'
@@ -109,7 +139,7 @@ export default function EmployeeMonitoring() {
                         initial={{ opacity: 0, x: 50 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 50 }}
-                        className="w-1/3 glass-panel rounded-xl flex flex-col overflow-hidden h-fit sticky top-6"
+                        className="w-1/3 glass-panel rounded-xl flex flex-col overflow-hidden h-fit sticky top-6 border border-gray-800"
                     >
                         <div className="p-6 border-b border-gray-800 flex justify-between items-start bg-cyber-800/30">
                             <div className="flex items-center space-x-4">
@@ -133,44 +163,44 @@ export default function EmployeeMonitoring() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="bg-cyber-900 border border-gray-800 p-4 rounded-lg">
                                     <div className="text-xs text-gray-500 mb-1 flex items-center"><ShieldAlert className="w-3 h-3 mr-1" /> Risk Score</div>
-                                    <div className={clsx("text-2xl font-bold", selectedEmployee.riskLevel === 'High' ? "text-cyber-danger" : selectedEmployee.riskLevel === 'Medium' ? 'text-cyber-warning' : 'text-cyber-success')}>
+                                    <div className={clsx("text-3xl font-bold transition-all", selectedEmployee.riskLevel === 'High' ? "text-cyber-danger glow-danger translate-y-[-2px]" : selectedEmployee.riskLevel === 'Medium' ? 'text-cyber-warning' : 'text-cyber-success')}>
                                         {selectedEmployee.riskScore}/100
                                     </div>
                                 </div>
                                 <div className="bg-cyber-900 border border-gray-800 p-4 rounded-lg">
-                                    <div className="text-xs text-gray-500 mb-1 flex items-center"><Clock className="w-3 h-3 mr-1" /> Last Login</div>
+                                    <div className="text-xs text-gray-500 mb-1 flex items-center"><Clock className="w-3 h-3 mr-1" /> Last Action Timestamp</div>
                                     <div className="text-sm font-medium text-gray-300">
-                                        {new Date(selectedEmployee.lastLogin).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        {selectedEmployee.lastLogin ? new Date(selectedEmployee.lastLogin).toLocaleTimeString() : 'N/A'}
                                     </div>
                                 </div>
                             </div>
 
                             <div>
-                                <h4 className="text-sm font-semibold text-gray-400 mb-3 border-b border-gray-800 pb-2">Behavior Analytics</h4>
+                                <h4 className="text-sm font-semibold text-gray-400 mb-3 border-b border-gray-800 pb-2">Behavior Analytics Pivot</h4>
                                 <ul className="space-y-3">
                                     <li className="flex items-center justify-between text-sm">
                                         <span className="text-gray-500 flex items-center"><Clock className="w-4 h-4 mr-2 text-cyber-blue" /> Typical Hours</span>
-                                        <span className="text-gray-300">09:00 - 17:00</span>
+                                        <span className="text-gray-300">{selectedEmployee.typicalHours}</span>
                                     </li>
                                     <li className="flex items-center justify-between text-sm">
                                         <span className="text-gray-500 flex items-center"><Search className="w-4 h-4 mr-2 text-cyber-blue" /> Most Accessed</span>
-                                        <span className="text-gray-300 font-mono text-xs bg-cyber-800 px-2 py-1 rounded">Customer DB</span>
+                                        <span className="text-gray-300 font-mono text-xs bg-cyber-800 px-2 py-1 rounded">{selectedEmployee.mostAccessed}</span>
                                     </li>
                                     <li className="flex items-center justify-between text-sm">
                                         <span className="text-gray-500 flex items-center"><FileDown className="w-4 h-4 mr-2 text-cyber-blue" /> Avg Downloads/Day</span>
-                                        <span className="text-gray-300">12 files</span>
+                                        <span className="text-gray-300">{selectedEmployee.avgDownloads} files</span>
                                     </li>
                                 </ul>
                             </div>
 
                             {selectedEmployee.riskLevel === 'High' && (
-                                <div className="bg-cyber-danger/10 border border-cyber-danger/30 p-4 rounded-lg">
+                                <div className="bg-cyber-danger/10 border border-cyber-danger/30 p-4 rounded-lg animate-pulse">
                                     <h4 className="text-cyber-danger text-sm font-bold flex items-center mb-2">
-                                        <AlertTriangle className="w-4 h-4 mr-2" /> Recent Anomalies
+                                        <AlertTriangle className="w-4 h-4 mr-2" /> Live Threat Anomalies
                                     </h4>
                                     <ul className="text-xs text-danger-200 space-y-2 list-disc list-inside text-gray-300">
-                                        <li>Logged in at 02:13 AM (Off-hours)</li>
-                                        <li>Downloaded 500+ records in 10 mins</li>
+                                        <li>High Data Volume export detected.</li>
+                                        <li>Action flags triggered in API gateway.</li>
                                     </ul>
                                     <button className="mt-4 w-full bg-cyber-danger hover:bg-red-600 text-white py-2 rounded-md text-sm font-medium transition-colors shadow-lg shadow-red-500/20">
                                         Open Case

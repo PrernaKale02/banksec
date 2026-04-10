@@ -1,16 +1,33 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Search, Filter, Plus, FileText, MessagesSquare } from 'lucide-react';
 import { clsx } from 'clsx';
 import { motion } from 'framer-motion';
-
-const cases = [
-    { id: 'CASE-2023-A01', employee: 'EMP-023 (Bob Johnson)', alertType: 'Bulk Data Export', riskScore: 92, status: 'Open', investigator: 'Unassigned', date: '2023-11-20' },
-    { id: 'CASE-2023-B14', employee: 'EMP-112 (Evan Wright)', alertType: 'Multiple Failed Logins', riskScore: 78, status: 'In Progress', investigator: 'Sarah Connor', date: '2023-11-20' },
-    { id: 'CASE-2023-C45', employee: 'EMP-045 (Charlie Davis)', alertType: 'Unauthorized Access', riskScore: 45, status: 'Closed', investigator: 'Mike Stone', date: '2023-11-19' },
-    { id: 'CASE-2023-A02', employee: 'EMP-011 (Unknown)', alertType: 'Suspicious IP Login', riskScore: 85, status: 'Open', investigator: 'Sarah Connor', date: '2023-11-18' },
-];
+import { api } from '../api/apiClient';
 
 export default function InvestigationCases() {
+    const [cases, setCases] = useState([]);
+    const [searchTerm, setSearchTerm] = useState('');
+
+    useEffect(() => {
+        const fetchCases = async () => {
+            try {
+                const data = await api.get('/api/cases');
+                setCases(data);
+            } catch (error) {
+                console.error("Failed to fetch cases:", error);
+            }
+        };
+
+        fetchCases();
+        const interval = setInterval(fetchCases, 3000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const filteredCases = cases.filter(c => 
+        c.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        c.employee.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between border-b border-gray-800 pb-4">
@@ -33,6 +50,8 @@ export default function InvestigationCases() {
                             type="text"
                             placeholder="Search cases..."
                             className="w-full bg-cyber-900 border border-gray-700 text-white rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:border-cyber-blue focus:ring-1 focus:ring-cyber-blue text-sm"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
                     <div className="flex space-x-2">
@@ -55,11 +74,11 @@ export default function InvestigationCases() {
                         </tr>
                     </thead>
                     <tbody>
-                        {cases.map((c, idx) => (
+                        {filteredCases.map((c, idx) => (
                             <motion.tr
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: idx * 0.1 }}
+                                transition={{ delay: 0 }}
                                 key={c.id}
                                 className="border-b border-gray-800 hover:bg-cyber-800/50 transition-colors"
                             >
@@ -73,7 +92,7 @@ export default function InvestigationCases() {
                                 </td>
                                 <td className="px-6 py-4">
                                     <span className={clsx(
-                                        "px-2 py-1 text-xs rounded-full border",
+                                        "px-2 py-1 text-xs rounded-full border transition-colors",
                                         c.status === 'Open' ? 'bg-cyber-danger/10 border-cyber-danger/20 text-cyber-danger' :
                                             c.status === 'In Progress' ? 'bg-cyber-warning/10 border-cyber-warning/20 text-cyber-warning' :
                                                 'bg-gray-800 border-gray-700 text-gray-400'

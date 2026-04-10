@@ -15,12 +15,15 @@ router = APIRouter(prefix="/api/activity", tags=["Activity Logging"])
 # POST /api/activity/log         → Receive activity, run ML, create alerts
 # ──────────────────────────────────────────────
 
+from models.alert import Alert
+import json
+import uuid
+
 @router.post("/log")
 def log_activity(payload: ActivityLogInput, db: Session = Depends(get_db)):
     """
     Receives an activity event from the Bank Portal and saves it.
-    In the future, Component 2 (ML Anomaly Detector) will hook in here 
-    to analyze the activity and generate alerts.
+    Also acts as a lightweight Anomaly Detector (Component 2) for the demo.
     """
 
     # Step 1: Save raw log to ActivityLog table
@@ -39,9 +42,36 @@ def log_activity(payload: ActivityLogInput, db: Session = Depends(get_db)):
 
     print(f"[ACTIVITY] {payload.employee_id} → {payload.action}: {payload.details}")
 
-    # Step 2: TODO (Component 2) — Feed into ML Anomaly Detector
-    # Step 3: TODO (Component 2) — Create Alert if anomaly detected
-    # Step 4: TODO (Component 4) — Send email if critical
+    # Step 2 & 3: Lightweight Anomaly Detector (Mocking Component 2)
+    is_anomaly = False
+    reasons = []
+    risk_score = 0
+
+    if payload.action == "BULK_DATA_EXPORT":
+        is_anomaly = True
+        risk_score = 92
+        reasons.append(f"Massive data export detected ({payload.data_volume_mb} MB)")
+        reasons.append("Action outside normal operating hours")
+
+    if payload.data_volume_mb and payload.data_volume_mb > 500 and not is_anomaly:
+        is_anomaly = True
+        risk_score = 85
+        reasons.append(f"Unusually large data transfer ({payload.data_volume_mb} MB)")
+
+    if is_anomaly:
+        alert_id = f"ALT-{uuid.uuid4().hex[:6].upper()}"
+        new_alert = Alert(
+            id=alert_id,
+            employee_id=payload.employee_id,
+            action=payload.action,
+            time=datetime.now(timezone.utc).strftime("%I:%M %p"),
+            risk_score=risk_score,
+            reasons=json.dumps(reasons),
+            status="Open"
+        )
+        db.add(new_alert)
+        db.commit()
+        print(f"🚨 [ALERT GENERATED] {alert_id} for {payload.employee_id} (Score: {risk_score})")
 
     return {
         "status": "logged",
@@ -49,6 +79,7 @@ def log_activity(payload: ActivityLogInput, db: Session = Depends(get_db)):
         "employee_id": activity.employee_id,
         "action": activity.action,
         "timestamp": activity.timestamp.isoformat(),
+        "anomaly_detected": is_anomaly
     }
 
 
