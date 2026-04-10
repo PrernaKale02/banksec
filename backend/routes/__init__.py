@@ -1,0 +1,9 @@
+from routes.dashboard import router as dashboard_router
+from routes.employees import router as employees_router
+from routes.alerts import router as alerts_router
+from routes.analytics import router as analytics_router
+from routes.cases import router as cases_router
+from routes.logs import router as logs_router
+from routes.settings import router as settings_router
+from routes.ml import router as ml_router
+from routes.activity import router as activity_router
