@@ -1,5 +1,6 @@
 # Dependencies
 frontend/node_modules/
+bank-portal/node_modules/
 backend/venv/
 backend/__pycache__/
 backend/**/__pycache__/
