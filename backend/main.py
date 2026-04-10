@@ -12,6 +12,7 @@ from database import engine, Base
 
 # Import all models so SQLAlchemy creates the tables
 from models import Employee, Alert, InvestigationCase, SystemLog, PlatformSettings, ActivityLog
+from models.admin import AdminUser
 
 # Import all routers
 from routes.dashboard import router as dashboard_router
@@ -23,6 +24,7 @@ from routes.logs import router as logs_router
 from routes.settings import router as settings_router
 from routes.ml import router as ml_router
 from routes.activity import router as activity_router
+from routes.auth import router as auth_router
 
 
 # ──────────────────────────────────────────────
@@ -64,6 +66,7 @@ app.include_router(logs_router)
 app.include_router(settings_router)
 app.include_router(ml_router)
 app.include_router(activity_router)
+app.include_router(auth_router)
 
 
 from database import SessionLocal
@@ -87,6 +90,12 @@ def seed_database():
             db.add_all(initial_employees)
             db.commit()
             print("[OK] Database seeded with base employees.")
+            
+        if db.query(AdminUser).count() == 0:
+            admin_user = AdminUser(username="admin", password="password123", role="SuperAdmin")
+            db.add(admin_user)
+            db.commit()
+            print("[OK] Default admin user seeded (admin / password123)")
     except Exception as e:
         print(f"[ERROR] Failed to seed database: {e}")
     finally:

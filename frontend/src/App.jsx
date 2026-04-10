@@ -7,11 +7,15 @@ import BehaviorAnalytics from './pages/BehaviorAnalytics';
 import InvestigationCases from './pages/InvestigationCases';
 import SystemLogs from './pages/SystemLogs';
 import Settings from './pages/Settings';
+import LandingPage from './pages/LandingPage';
+import AdminLogin from './pages/AdminLogin';
 
 function App() {
+    const [appState, setAppState] = useState('landing'); // 'landing', 'login', 'dashboard'
     const [currentTab, setCurrentTab] = useState('dashboard');
+    const [adminUser, setAdminUser] = useState(null);
 
-    const renderContent = () => {
+    const renderDashboardContent = () => {
         switch (currentTab) {
             case 'dashboard':
                 return <DashboardOverview />;
@@ -36,9 +40,20 @@ function App() {
         }
     };
 
+    if (appState === 'landing') {
+        return <LandingPage onNavigate={(state) => setAppState(state)} />;
+    }
+
+    if (appState === 'login') {
+        return <AdminLogin onLoginSuccess={(user) => {
+            setAdminUser(user);
+            setAppState('dashboard');
+        }} onBack={() => setAppState('landing')} />;
+    }
+
     return (
         <Layout currentTab={currentTab} setCurrentTab={setCurrentTab}>
-            {renderContent()}
+            {renderDashboardContent()}
         </Layout>
     );
 }
